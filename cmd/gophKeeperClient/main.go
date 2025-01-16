@@ -35,10 +35,19 @@ type UserData struct {
 	DataType string
 }
 
+type App struct {
+	Token string
+}
+
 func main() {
+	app := &App{}
+	app.run()
+}
+
+func (app *App) run() {
 	var name string
 	for {
-		fmt.Println("Введите команду. Для получения списка команда введите help")
+		fmt.Println("Введите команду. Для получения списка команд введите help")
 		_, err := fmt.Scan(&name)
 
 		if err != nil {
@@ -47,31 +56,31 @@ func main() {
 
 		switch name {
 		case "add":
-			addData()
+			app.addData()
 		case "get":
-			_, err = getData()
+			_, err = app.getData()
 			if err != nil {
 				return
 			}
 		case "edit":
-			editData()
+			app.editData()
 		case "delete":
-			deleteData()
+			app.deleteData()
 		case "register":
-			register()
+			app.register()
 		case "login":
-			authenticate()
+			app.authenticate()
 		case "info":
 			fmt.Println(CommandSet)
 		case "ping":
-			ping()
+			app.ping()
 		default:
 			fmt.Println("Вы ввели несуществующую команду.\n" + CommandSet)
 		}
 	}
 }
 
-func deleteData() {
+func (app *App) deleteData() {
 	var dataID int
 	fmt.Println("Введите id записи на удаление")
 
@@ -123,8 +132,8 @@ func deleteData() {
 	fmt.Printf("Ответ сервера: %s\n", responseBody)
 }
 
-func editData() {
-	userDataArray, err := getData()
+func (app *App) editData() {
+	userDataArray, err := app.getData()
 	if err != nil {
 		log.Fatalf("Error creating request: %v", err)
 	}
@@ -220,7 +229,7 @@ func editData() {
 	fmt.Printf("Ответ сервера: %s\n", responseBody)
 }
 
-func getData() ([]UserData, error) {
+func (app *App) getData() ([]UserData, error) {
 	req, err := http.NewRequest("GET", "http://localhost:8080/get_data", nil)
 
 	if err != nil {
@@ -273,7 +282,7 @@ func getData() ([]UserData, error) {
 	return userDataArray, nil
 }
 
-func addData() {
+func (app *App) addData() {
 	metaInfo, err := enterMetaInfo()
 	if err != nil {
 		return
@@ -317,6 +326,163 @@ func addData() {
 			fmt.Println("Вы ввели несуществующую команду.\n" + CommandSet)
 		}
 	}
+}
+
+func (app *App) authenticate() {
+	var login string
+	var password string
+	for {
+		fmt.Println("Введите логин:")
+		_, err := fmt.Scan(&login)
+
+		if err != nil {
+			return
+		}
+
+		if login == "" {
+			fmt.Println("Введите непустую строку!")
+		} else {
+			break
+		}
+	}
+
+	for {
+		fmt.Println("Введите пароль:")
+		_, err := fmt.Scan(&password)
+
+		if err != nil {
+			return
+		}
+
+		if login == "" {
+			fmt.Println("Введите непустую строку!")
+		} else {
+			break
+		}
+	}
+
+	data := map[string]string{
+		"login":    login,
+		"password": password,
+	}
+
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		log.Fatalf("Error marshaling JSON: %v", err)
+	}
+
+	resp, err := http.Post(
+		"http://localhost:8080/authentication",
+		"application/json",
+		bytes.NewBuffer(jsonData))
+
+	defer func() {
+		if resp != nil {
+			_ = resp.Body.Close()
+		}
+	}()
+
+	if err != nil {
+		log.Printf("Ошибка при выполнении запроса: %v", err)
+	}
+
+	responseBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Printf("Ошибка при чтении ответа: %v", err)
+	}
+
+	token, err = getCookieValue(resp.Header.Get("Set-Cookie"), cookieName)
+
+	if err != nil {
+		log.Printf("Ошибка при чтении ответа: %v", err)
+	}
+
+	fmt.Printf("Куки авторизации: %s\n", token)
+	fmt.Printf("Ответ сервера: %s\n", responseBody)
+}
+
+func (app *App) ping() {
+	resp, err := http.Get("http://localhost:8080/ping")
+
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	fmt.Println(resp.Status)
+}
+
+func (app *App) register() {
+	var login string
+	var password string
+	for {
+		fmt.Println("Введите логин:")
+		_, err := fmt.Scan(&login)
+
+		if err != nil {
+			return
+		}
+
+		if login == "" {
+			fmt.Println("Введите непустую строку!")
+		} else {
+			break
+		}
+	}
+
+	for {
+		fmt.Println("Введите пароль:")
+		_, err := fmt.Scan(&password)
+
+		if err != nil {
+			return
+		}
+
+		if login == "" {
+			fmt.Println("Введите непустую строку!")
+		} else {
+			break
+		}
+	}
+
+	data := map[string]string{
+		"login":    login,
+		"password": password,
+	}
+
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		log.Fatalf("Error marshaling JSON: %v", err)
+	}
+
+	resp, err := http.Post(
+		"http://localhost:8080/registration",
+		"application/json",
+		bytes.NewBuffer(jsonData))
+
+	defer func() {
+		if resp != nil {
+			_ = resp.Body.Close()
+		}
+	}()
+
+	if err != nil {
+		log.Printf("Ошибка при выполнении запроса: %v", err)
+	}
+
+	responseBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Printf("Ошибка при чтении ответа: %v", err)
+	}
+
+	token, err = getCookieValue(resp.Header.Get("Set-Cookie"), cookieName)
+
+	if err != nil {
+		log.Printf("Ошибка при чтении ответа: %v", err)
+	}
+
+	fmt.Printf("Куки авторизации: %s\n", token)
+	fmt.Printf("Ответ сервера: %s\n", responseBody)
 }
 
 func enterMetaInfo() (string, error) {
@@ -609,90 +775,6 @@ func enterBinary(metaInfo string) (map[string]interface{}, error) {
 	return dataInfo, nil
 }
 
-func ping() {
-	resp, err := http.Get("http://localhost:8080/ping")
-
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	fmt.Println(resp.Status)
-}
-
-func register() {
-	var login string
-	var password string
-	for {
-		fmt.Println("Введите логин:")
-		_, err := fmt.Scan(&login)
-
-		if err != nil {
-			return
-		}
-
-		if login == "" {
-			fmt.Println("Введите непустую строку!")
-		} else {
-			break
-		}
-	}
-
-	for {
-		fmt.Println("Введите пароль:")
-		_, err := fmt.Scan(&password)
-
-		if err != nil {
-			return
-		}
-
-		if login == "" {
-			fmt.Println("Введите непустую строку!")
-		} else {
-			break
-		}
-	}
-
-	data := map[string]string{
-		"login":    login,
-		"password": password,
-	}
-
-	jsonData, err := json.Marshal(data)
-	if err != nil {
-		log.Fatalf("Error marshaling JSON: %v", err)
-	}
-
-	resp, err := http.Post(
-		"http://localhost:8080/registration",
-		"application/json",
-		bytes.NewBuffer(jsonData))
-
-	defer func() {
-		if resp != nil {
-			_ = resp.Body.Close()
-		}
-	}()
-
-	if err != nil {
-		log.Printf("Ошибка при выполнении запроса: %v", err)
-	}
-
-	responseBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Printf("Ошибка при чтении ответа: %v", err)
-	}
-
-	token, err = getCookieValue(resp.Header.Get("Set-Cookie"), cookieName)
-
-	if err != nil {
-		log.Printf("Ошибка при чтении ответа: %v", err)
-	}
-
-	fmt.Printf("Куки авторизации: %s\n", token)
-	fmt.Printf("Ответ сервера: %s\n", responseBody)
-}
-
 // getCookieValue извлекает значение куки по её имени.
 func getCookieValue(cookieStr string, cookieName string) (string, error) {
 	parts := strings.Split(cookieStr, ";")
@@ -708,77 +790,4 @@ func getCookieValue(cookieStr string, cookieName string) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("кука с именем %s не найдена", cookieName)
-}
-
-func authenticate() {
-	var login string
-	var password string
-	for {
-		fmt.Println("Введите логин:")
-		_, err := fmt.Scan(&login)
-
-		if err != nil {
-			return
-		}
-
-		if login == "" {
-			fmt.Println("Введите непустую строку!")
-		} else {
-			break
-		}
-	}
-
-	for {
-		fmt.Println("Введите пароль:")
-		_, err := fmt.Scan(&password)
-
-		if err != nil {
-			return
-		}
-
-		if login == "" {
-			fmt.Println("Введите непустую строку!")
-		} else {
-			break
-		}
-	}
-
-	data := map[string]string{
-		"login":    login,
-		"password": password,
-	}
-
-	jsonData, err := json.Marshal(data)
-	if err != nil {
-		log.Fatalf("Error marshaling JSON: %v", err)
-	}
-
-	resp, err := http.Post(
-		"http://localhost:8080/authentication",
-		"application/json",
-		bytes.NewBuffer(jsonData))
-
-	defer func() {
-		if resp != nil {
-			_ = resp.Body.Close()
-		}
-	}()
-
-	if err != nil {
-		log.Printf("Ошибка при выполнении запроса: %v", err)
-	}
-
-	responseBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Printf("Ошибка при чтении ответа: %v", err)
-	}
-
-	token, err = getCookieValue(resp.Header.Get("Set-Cookie"), cookieName)
-
-	if err != nil {
-		log.Printf("Ошибка при чтении ответа: %v", err)
-	}
-
-	fmt.Printf("Куки авторизации: %s\n", token)
-	fmt.Printf("Ответ сервера: %s\n", responseBody)
 }
