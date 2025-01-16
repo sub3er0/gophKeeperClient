@@ -312,7 +312,7 @@ func addData() {
 			}
 			break
 		case "exit":
-			break
+			return
 		default:
 			fmt.Println("Вы ввели несуществующую команду.\n" + CommandSet)
 		}
@@ -350,6 +350,7 @@ func enterMetaInfo() (string, error) {
 			return "", err
 		}
 	}
+	metaInfo = strings.TrimSuffix(metaInfo, "\n")
 
 	return metaInfo, nil
 }
@@ -510,9 +511,12 @@ func enterText(metaInfo string) (map[string]interface{}, error) {
 	var text string
 	for {
 		fmt.Println("Введите текст:")
-		_, err := fmt.Scan(&text)
+		reader := bufio.NewReader(os.Stdin)
 
+		var err error
+		text, err = reader.ReadString('\n')
 		if err != nil {
+			fmt.Println("Ошибка ввода")
 			return nil, err
 		}
 
@@ -522,6 +526,7 @@ func enterText(metaInfo string) (map[string]interface{}, error) {
 			break
 		}
 	}
+	text = strings.TrimSuffix(text, "\n")
 
 	data := map[string]interface{}{
 		"text":      text,
