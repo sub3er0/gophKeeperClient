@@ -122,7 +122,7 @@ func (cli *CLIHelper) EnterDataID() (uint, error) {
 	for {
 		_, err := fmt.Scan(&dataID)
 		if err != nil {
-			return 0, fmt.Errorf("ошибка чтения id. Повторите попытку: %v", err)
+			fmt.Printf("ошибка чтения id. Повторите попытку: %v", err)
 		} else {
 			break
 		}

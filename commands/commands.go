@@ -58,6 +58,8 @@ func (handler *CommandHandler) Run(ctx context.Context) {
 			}
 
 			switch command {
+			case "help":
+				fmt.Println(CommandSet)
 			case "add":
 				err = handler.AddData()
 			case "get":
