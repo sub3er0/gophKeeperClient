@@ -12,8 +12,8 @@ import (
 )
 
 type CommandHandler struct {
-	APIClient *api.APIClient
-	CLIHelper *cli.CLIHelper
+	APIClient api.APIClientInterface
+	CLIHelper cli.CLIHelperInterface
 }
 
 // UserData представляет структуру таблицы user_data.
@@ -37,6 +37,7 @@ const (
 
 func (handler *CommandHandler) Run(ctx context.Context) {
 	var command string
+	var err error
 	for {
 		fmt.Println("Введите команду:")
 
@@ -45,7 +46,7 @@ func (handler *CommandHandler) Run(ctx context.Context) {
 			fmt.Println("Программа завершена")
 			return
 		default:
-			_, err := fmt.Scan(&command)
+			_, err = fmt.Scan(&command)
 			if err != nil {
 				log.Println("Ошибка ввода: ", err)
 				continue
@@ -58,80 +59,80 @@ func (handler *CommandHandler) Run(ctx context.Context) {
 
 			switch command {
 			case "add":
-				handler.AddData()
+				err = handler.AddData()
 			case "get":
 				_, err = handler.GetData()
+			case "edit":
+				err = handler.EditData()
+			case "delete":
+				err = handler.DeleteData()
+			case "login":
+				err = handler.Authenticate()
 				if err != nil {
 					return
 				}
-			case "edit":
-				handler.EditData()
-			case "delete":
-				handler.DeleteData()
-			case "login":
-				handler.Authenticate()
 			case "register":
-				handler.Register()
+				err = handler.Register()
 			case "ping":
-				handler.Ping()
+				err = handler.Ping()
 			default:
 				fmt.Println("Неизвестная команда")
 			}
 		}
+
+		if err != nil {
+			log.Println(err)
+		}
 	}
 }
 
-func (handler *CommandHandler) AddData() {
+func (handler *CommandHandler) AddData() error {
 	metaInfo, err := handler.CLIHelper.GetMetaInfo()
 	if err != nil {
-		return
+		return err
 	}
 
 	var infoType string
 	for {
-		fmt.Println("Выберите тип сохраняемой информации\n" +
-			"Логин-пароль: key-pas\n" +
-			"Текстовые данные: text\n" +
-			"Бинарные данные: binary\n" +
-			"Выход: exit")
-		_, err = fmt.Scan(&infoType)
+		infoType, err = handler.CLIHelper.EnterInfoType()
 
 		if err != nil {
-			return
+			return err
 		}
 
 		switch infoType {
 		case "key-pas":
 			err = handler.addKeyPas(handler.APIClient, metaInfo)
 			if err != nil {
-				return
+				return err
 			}
 			break
 		case "text":
 			err = handler.addText(handler.APIClient, metaInfo)
 			if err != nil {
-				return
+				return err
 			}
 			break
 		case "binary":
 			err = handler.addBinary(handler.APIClient, metaInfo)
 			if err != nil {
-				return
+				return err
 			}
 			break
 		case "exit":
-			return
+			return err
 		default:
 			fmt.Println("Вы ввели несуществующую команду.\n" + CommandSet)
 		}
+
+		return nil
 	}
 }
 
-func (handler *CommandHandler) addKeyPas(apiClient *api.APIClient, metaInfo string) error {
+func (handler *CommandHandler) addKeyPas(apiClient api.APIClientInterface, metaInfo string) error {
 	data, err := handler.CLIHelper.EnterKeyPas(metaInfo)
 	if err != nil {
-		log.Printf("Ошибка ввода")
-		return err
+		return fmt.Errorf("ошибка ввода: %v", err)
 	}
 
 	headers := map[string]string{
@@ -142,7 +143,7 @@ func (handler *CommandHandler) addKeyPas(apiClient *api.APIClient, metaInfo stri
 
 	responseBody, err := apiClient.Post("add_data", data, headers)
 	if err != nil {
-		log.Printf("Ошибка при добавлении логин пароль: %v", err)
+		return fmt.Errorf("ошибка при добавлении логин пароль: %v", err)
 	}
 
 	fmt.Printf("Ответ сервера: %s\n", responseBody)
@@ -150,7 +151,7 @@ func (handler *CommandHandler) addKeyPas(apiClient *api.APIClient, metaInfo stri
 	return nil
 }
 
-func (handler *CommandHandler) addText(apiClient *api.APIClient, metaInfo string) error {
+func (handler *CommandHandler) addText(apiClient api.APIClientInterface, metaInfo string) error {
 	data, err := handler.CLIHelper.EnterText(metaInfo)
 
 	if err != nil {
@@ -164,7 +165,8 @@ func (handler *CommandHandler) addText(apiClient *api.APIClient, metaInfo string
 
 	responseBody, err := apiClient.Post("add_data", data, headers)
 	if err != nil {
-		log.Printf("Ошибка при добавлении текста: %v", err)
+		return fmt.Errorf("ошибка при добавлении текста: %v", err)
+
 	}
 
 	fmt.Printf("Ответ сервера: %s\n", responseBody)
@@ -172,12 +174,11 @@ func (handler *CommandHandler) addText(apiClient *api.APIClient, metaInfo string
 	return nil
 }
 
-func (handler *CommandHandler) addBinary(apiClient *api.APIClient, metaInfo string) error {
+func (handler *CommandHandler) addBinary(apiClient api.APIClientInterface, metaInfo string) error {
 	dataInfo, err := handler.CLIHelper.EnterBinary(metaInfo)
 
 	if err != nil {
-		log.Printf("Ошибка ввода")
-		return err
+		return fmt.Errorf("ошибка ввода: %v", err)
 	}
 
 	headers := map[string]string{
@@ -187,7 +188,7 @@ func (handler *CommandHandler) addBinary(apiClient *api.APIClient, metaInfo stri
 
 	responseBody, err := apiClient.Post("add_data", dataInfo, headers)
 	if err != nil {
-		log.Printf("Ошибка при добавлении бинарных данных: %v", err)
+		return fmt.Errorf("ошибка при добавлении бинарных данных: %v", err)
 	}
 
 	fmt.Printf("Ответ сервера: %s\n", responseBody)
@@ -202,16 +203,14 @@ func (handler *CommandHandler) GetData() ([]UserData, error) {
 
 	responseBody, err := handler.APIClient.Get("get_data", headers)
 	if err != nil {
-		log.Printf("Ошибка при получении спика данных: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("ошибка при получении спика данных: %v", err)
 	}
 
 	var userDataArray []UserData
 	err = json.Unmarshal(responseBody, &userDataArray)
 
 	if err != nil {
-		log.Printf("Ошибка при чтении ответа: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("ошибка при чтении ответа: %v", err)
 	}
 
 	for _, userData := range userDataArray {
@@ -221,21 +220,24 @@ func (handler *CommandHandler) GetData() ([]UserData, error) {
 	return userDataArray, nil
 }
 
-func (handler *CommandHandler) EditData() {
+func (handler *CommandHandler) EditData() error {
 	userDataArray, err := handler.GetData()
 	if err != nil {
 		log.Printf("Error creating request: %v", err)
-		return
+		return err
 	}
 
-	var dataID uint
-	handler.CLIHelper.EnterDataID(&dataID)
+	fmt.Println("Введите id записи на изменение")
+	dataID, err := handler.CLIHelper.EnterDataID()
+	if err != nil {
+		log.Print(err)
+		return err
+	}
 
 	metaInfo, err := handler.CLIHelper.GetMetaInfo()
 
 	if err != nil {
-		log.Printf("Ошибка ввода")
-		return
+		return fmt.Errorf("ошибка ввода: %v", err)
 	}
 
 	var data map[string]interface{}
@@ -258,8 +260,7 @@ func (handler *CommandHandler) EditData() {
 	}
 
 	if err != nil {
-		log.Printf("Ошибка ввода")
-		return
+		return fmt.Errorf("ошибка ввода: %v", err)
 	}
 
 	headers := map[string]string{
@@ -270,126 +271,70 @@ func (handler *CommandHandler) EditData() {
 
 	responseBody, err := handler.APIClient.Post("edit_data", data, headers)
 	if err != nil {
-		log.Printf("Ошибка при изменении данных: %v", err)
-		return
+		return fmt.Errorf("ошибка при изменении данных: %v", err)
 	}
 
 	fmt.Printf("Ответ сервера: %s\n", responseBody)
+
+	return nil
 }
 
-func (handler *CommandHandler) DeleteData() {
-	var dataID int
+func (handler *CommandHandler) DeleteData() error {
 	fmt.Println("Введите id записи на удаление")
-
-	for {
-		_, err := fmt.Scan(&dataID)
-		if err != nil {
-			fmt.Println("Ошибка чтения id. Повторите попытку")
-		} else {
-			break
-		}
+	dataID, err := handler.CLIHelper.EnterDataID()
+	if err != nil {
+		return err
 	}
 
 	headers := map[string]string{
 		"Content-Type": "application/json",
 	}
 
-	responseBody, err := handler.APIClient.Get("delete_data?id="+strconv.Itoa(dataID), headers)
+	responseBody, err := handler.APIClient.Get("delete_data?id="+strconv.FormatUint(uint64(dataID), 10), headers)
 	if err != nil {
-		log.Printf("Ошибка при удалении записи: %v", err)
+		return fmt.Errorf("ошибка при удалении записи: %v", err)
 	}
 
 	fmt.Printf("Ответ сервера: %s\n", responseBody)
+
+	return nil
 }
 
-func (handler *CommandHandler) Authenticate() {
-	var login string
-	var password string
-	for {
-		fmt.Println("Введите логин:")
-		_, err := fmt.Scan(&login)
-
-		if err != nil {
-			return
-		}
-
-		if login == "" {
-			fmt.Println("Введите непустую строку!")
-		} else {
-			break
-		}
-	}
-
-	for {
-		fmt.Println("Введите пароль:")
-		_, err := fmt.Scan(&password)
-
-		if err != nil {
-			return
-		}
-
-		if login == "" {
-			fmt.Println("Введите непустую строку!")
-		} else {
-			break
-		}
-	}
+func (handler *CommandHandler) Authenticate() error {
+	login := handler.CLIHelper.GetLogin()
+	password := handler.CLIHelper.GetPassword()
 
 	token, responseBody, err := handler.APIClient.Authenticate(login, password)
 	handler.APIClient.SetToken(token)
 
 	if err != nil {
-		log.Printf("Ошибка при чтении ответа: %v", err)
+		return fmt.Errorf("ошибка при чтении ответа: %v", err)
+
 	}
 
 	fmt.Printf("Куки авторизации: %s\n", token)
 	fmt.Printf("Ответ сервера: %s\n", responseBody)
+
+	return nil
 }
 
-func (handler *CommandHandler) Register() {
-	var login string
-	var password string
-	for {
-		fmt.Println("Введите логин:")
-		_, err := fmt.Scan(&login)
-
-		if err != nil {
-			return
-		}
-
-		if login == "" {
-			fmt.Println("Введите непустую строку!")
-		} else {
-			break
-		}
-	}
-
-	for {
-		fmt.Println("Введите пароль:")
-		_, err := fmt.Scan(&password)
-
-		if err != nil {
-			return
-		}
-
-		if login == "" {
-			fmt.Println("Введите непустую строку!")
-		} else {
-			break
-		}
-	}
+func (handler *CommandHandler) Register() error {
+	login := handler.CLIHelper.GetLogin()
+	password := handler.CLIHelper.GetPassword()
 
 	token, responseBody, err := handler.APIClient.Registration(login, password)
 	handler.APIClient.SetToken(token)
 
 	if err != nil {
-		log.Printf("Ошибка при чтении ответа: %v", err)
+		return fmt.Errorf("ошибка при чтении ответа: %v", err)
 	}
 
 	fmt.Printf("Куки авторизации: %s\n", token)
 	fmt.Printf("Ответ сервера: %s\n", responseBody)
+
+	return nil
 }
 
-func (handler *CommandHandler) Ping() {
-	handler.APIClient.Ping()
+func (handler *CommandHandler) Ping() error {
+	return handler.APIClient.Ping()
 }

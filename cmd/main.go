@@ -15,7 +15,8 @@ import (
 
 func main() {
 	configuration := config.Configuration{}
-	cfg, err := configuration.InitConfig()
+	cfg := config.ConfigData{}
+	_, err := configuration.InitConfig(&cfg)
 
 	if err != nil {
 		log.Fatalf("Error while initializing configuration: %v", err)

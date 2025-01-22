@@ -17,6 +17,9 @@ type ConfigData struct {
 // isParsed отслеживает, выполнена ли обработка аргументов командной строки.
 var isParsed bool
 
+// isDefined был ли установлен флаг
+var isDefined bool
+
 // ConfigurationInterface интерфейс, в рамках проекта используется для моков юинт тестов
 type ConfigurationInterface interface {
 	InitConfig() (*ConfigData, error)
@@ -26,8 +29,13 @@ type ConfigurationInterface interface {
 type Configuration struct{}
 
 // InitConfig инициализирует конфигурацию приложения.
-func (cs *Configuration) InitConfig() (*ConfigData, error) {
-	cfg := &ConfigData{}
+func (cs *Configuration) InitConfig(cfg *ConfigData) (*ConfigData, error) {
+	isParsed = false
+
+	if !isDefined {
+		flag.StringVar(&cfg.ServerAddress, "a", "http://localhost:8080", "Адрес HTTP-сервера")
+		isDefined = true
+	}
 
 	configFile := os.Getenv("CONFIG")
 	if configFile == "" {
@@ -49,7 +57,6 @@ func (cs *Configuration) InitConfig() (*ConfigData, error) {
 	}
 
 	if !isParsed {
-		flag.StringVar(&cfg.ServerAddress, "a", "localhost:8080", "Адрес HTTP-сервера")
 		flag.Parse()
 		isParsed = true
 	}

@@ -16,9 +16,10 @@ type CLIHelperInterface interface {
 	GetPassword() string
 	GetMetaInfo() (string, error)
 	EnterText(metaInfo string) (map[string]interface{}, error)
-	EnterDataID(dataID *uint)
+	EnterDataID() (uint, error)
 	EnterBinary(metaInfo string) (map[string]interface{}, error)
 	EnterKeyPas(metaInfo string) (map[string]interface{}, error)
+	EnterInfoType() (string, error)
 }
 
 // GetLogin Запрашивает ввод логина у пользователя
@@ -116,17 +117,18 @@ func (cli *CLIHelper) EnterText(metaInfo string) (map[string]interface{}, error)
 	return data, nil
 }
 
-func (cli *CLIHelper) EnterDataID(dataID *uint) {
-	fmt.Println("Введите id записи на изменение")
-
+func (cli *CLIHelper) EnterDataID() (uint, error) {
+	var dataID uint
 	for {
 		_, err := fmt.Scan(&dataID)
 		if err != nil {
-			fmt.Println("Ошибка чтения id. Повторите попытку")
+			return 0, fmt.Errorf("ошибка чтения id. Повторите попытку: %v", err)
 		} else {
 			break
 		}
 	}
+
+	return dataID, nil
 }
 
 func (cli *CLIHelper) EnterBinary(metaInfo string) (map[string]interface{}, error) {
@@ -159,4 +161,21 @@ func (cli *CLIHelper) EnterKeyPas(metaInfo string) (map[string]interface{}, erro
 	}
 
 	return data, nil
+}
+
+func (cli *CLIHelper) EnterInfoType() (string, error) {
+	var err error
+	var infoType string
+	fmt.Println("Выберите тип сохраняемой информации\n" +
+		"Логин-пароль: key-pas\n" +
+		"Текстовые данные: text\n" +
+		"Бинарные данные: binary\n" +
+		"Выход: exit")
+	_, err = fmt.Scan(&infoType)
+
+	if err != nil {
+		return "", err
+	}
+
+	return infoType, nil
 }

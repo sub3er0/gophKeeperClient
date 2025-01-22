@@ -19,10 +19,12 @@ type APIClient struct {
 
 // APIClientInterface интерфейс для APIClient
 type APIClientInterface interface {
+	SetToken(token string)
 	Authenticate(login, password string) (string, []byte, error)
 	Registration(login, password string) (string, []byte, error)
 	Get(endpoint string, headers map[string]string) ([]byte, error)
 	Post(endpoint string, data interface{}, headers map[string]string) ([]byte, error)
+	Ping() error
 }
 
 func NewAPIClient(baseURL string) *APIClient {
@@ -212,14 +214,17 @@ func (client *APIClient) Registration(login, password string) (string, []byte, e
 	return token, responseBody, nil
 }
 
-func (client *APIClient) Ping() {
+func (client *APIClient) Ping() error {
 	resp, err := http.Get(client.BaseURL + "/ping")
 
 	if err != nil {
 		fmt.Println(err)
+		return err
 	}
 
 	fmt.Println(resp.Status)
+
+	return nil
 }
 
 // Функция для извлечения значения куки
