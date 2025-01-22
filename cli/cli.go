@@ -3,7 +3,6 @@ package cli
 import (
 	"bufio"
 	"fmt"
-	"io"
 	"os"
 	"strings"
 )
@@ -135,11 +134,14 @@ func (cli *CLIHelper) EnterBinary(metaInfo string) (map[string]interface{}, erro
 	var data []byte
 
 	fmt.Println("Введите бинарные данные (Ctrl+D для завершения):")
-	data, err := io.ReadAll(os.Stdin)
+
+	reader := bufio.NewReader(os.Stdin)
+	line, err := reader.ReadBytes('\n')
 	if err != nil {
 		return nil, fmt.Errorf("ошибка чтения из стандартного ввода: %v", err)
 	}
 
+	data = append(data, line...)
 	dataInfo := map[string]interface{}{
 		"meta-info":   metaInfo,
 		"binary-data": data,

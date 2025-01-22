@@ -2,13 +2,16 @@
 package commands
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
 	"gophKeeperClient/api"
 	"gophKeeperClient/cli"
 	"log"
+	"os"
 	"strconv"
+	"strings"
 )
 
 type CommandHandler struct {
@@ -38,6 +41,8 @@ const (
 func (handler *CommandHandler) Run(ctx context.Context) {
 	var command string
 	var err error
+	reader := bufio.NewReader(os.Stdin)
+
 	for {
 		fmt.Println("Введите команду:")
 
@@ -46,11 +51,14 @@ func (handler *CommandHandler) Run(ctx context.Context) {
 			fmt.Println("Программа завершена")
 			return
 		default:
-			_, err = fmt.Scan(&command)
+			command, err = reader.ReadString('\n')
+
 			if err != nil {
-				log.Println("Ошибка ввода: ", err)
+				log.Println("Ошибка ввода:", err)
 				continue
 			}
+
+			command = strings.TrimSpace(command)
 
 			if command == "exit" {
 				fmt.Println("Завершение работы...")
